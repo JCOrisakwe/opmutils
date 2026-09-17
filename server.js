@@ -31,7 +31,11 @@ app.get("/freshness", async (req, res) => {
     "a790a744-ee49-4a3f-8995-7843439f4c6f": "MILE 13 CLUSTER",
   };
 
-  const response = await fetch(url, options);
+  const response = await fetch(url, {
+    ...options,
+    method: "POST",
+    body: JSON.stringify({ filters: { sites: Object.keys(SITES) } }),
+  });
   const data = await response.json();
 
   const parsedData = [];
