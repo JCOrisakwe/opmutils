@@ -11,6 +11,22 @@ function getDatesInRange(from, to) {
   return dates;
 }
 
+function mergeCSV(csvStrArr) {
+  const mergedChunks = [];
+
+  for (const str of csvStrArr) {
+    if (mergedChunks.length === 0) {
+      mergedChunks.push(str.trim());
+      continue;
+    }
+    const lines = str.trim().split(/\r?\n/);
+    mergedChunks.push(lines.slice(1).join("\n"));
+  }
+
+  return mergedChunks.join("\n");
+}
+
 module.exports = {
   getDatesInRange,
+  mergeCSV,
 };
