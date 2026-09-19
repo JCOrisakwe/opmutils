@@ -98,7 +98,7 @@ app.get("/reports", async (req, res) => {
     });
   const data = await Promise.all(promises);
 
-  res.json(data);
+  res.json(utils.mergeCSV(data));
 });
 
 app.listen(3000, () =>
