@@ -1,4 +1,5 @@
 const express = require("express");
+const utils = require("./utils");
 const app = express();
 const PORT = 3000;
 
@@ -82,15 +83,20 @@ app.get("/historical", async (req, res) => {
 
 app.get("/reports", async (req, res) => {
   const params = {
-    date: "2026-09-01",
     granularity: "daily",
     site_id: Object.keys(SITES)[0],
     type: "payments",
   };
 
-  const url = `${baseUrl}/report?${new URLSearchParams(params).toString()}`;
-  const response = await fetch(url, options);
-  const data = await response.text();
+  const promises = utils
+    .getDatesInRange("2026-09-01", "2026-09-03")
+    .map(async (date) => {
+      params.date = date;
+      const url = `${baseUrl}/report?${new URLSearchParams(params).toString()}`;
+      const response = await fetch(url, options);
+      return await response.text();
+    });
+  const data = await Promise.all(promises);
 
   res.json(data);
 });
