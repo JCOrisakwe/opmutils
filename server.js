@@ -22,8 +22,7 @@ const SITES = {
 
 app.get("/sites", async (req, res) => {
   const url = `${baseUrl}/organizations/${org_id}/sites`;
-  const response = await fetch(url, options);
-  const data = await response.json();
+  const data = await utils.safeFetch(url, options);
   for (const site of data.sites) SITES[site.id] = site.name;
   res.json(data.sites);
 });
@@ -31,12 +30,11 @@ app.get("/sites", async (req, res) => {
 app.get("/freshness", async (req, res) => {
   const url = `${baseUrl}/organizations/${org_id}/data/freshness`;
 
-  const response = await fetch(url, {
+  const data = await utils.safeFetch(url, {
     ...options,
     method: "POST",
     body: JSON.stringify({ filters: { sites: Object.keys(SITES) } }),
   });
-  const data = await response.json();
 
   const parsedData = [];
   for (const [site_id, reading] of Object.entries(data.freshness)) {
@@ -49,7 +47,7 @@ app.get("/freshness", async (req, res) => {
 app.get("/live", async (req, res) => {
   const url = `${baseUrl}/organizations/${org_id}/data/live`;
 
-  const response = await fetch(url, {
+  const data = await utils.safeFetch(url, {
     ...options,
     method: "POST",
     body: JSON.stringify({
@@ -57,7 +55,6 @@ app.get("/live", async (req, res) => {
       filters: { sites: Object.keys(SITES), age: "30m" },
     }),
   });
-  const data = await response.json();
 
   res.json(data);
 });
@@ -65,7 +62,7 @@ app.get("/live", async (req, res) => {
 app.get("/historical", async (req, res) => {
   const url = `${baseUrl}/organizations/${org_id}/data/historical`;
 
-  const response = await fetch(url, {
+  const data = await utils.safeFetch(url, {
     ...options,
     method: "POST",
     body: JSON.stringify({
@@ -76,29 +73,34 @@ app.get("/historical", async (req, res) => {
       },
     }),
   });
-  const data = await response.json();
 
   res.json(data);
 });
 
 app.get("/reports", async (req, res) => {
-  const params = {
-    granularity: "daily",
-    site_id: Object.keys(SITES)[0],
-    type: "payments",
+  const [date, dateTo, granularity, site_id, type] = [
+    "2026-09-01",
+    "2026-09-02",
+    "daily",
+    "3a1bb0d2-4521-4f24-bab9-8426d4827480",
+    "payments",
+  ];
+
+  const fetchReport = async (reportDate) => {
+    const params = { date: reportDate, granularity, site_id, type };
+    const url = `${baseUrl}/report?${new URLSearchParams(params).toString()}`;
+    return await utils.safeFetch(url, options, false);
   };
 
-  const promises = utils
-    .getDatesInRange("2026-09-01", "2026-09-03")
-    .map(async (date) => {
-      params.date = date;
-      const url = `${baseUrl}/report?${new URLSearchParams(params).toString()}`;
-      const response = await fetch(url, options);
-      return await response.text();
-    });
-  const data = await Promise.all(promises);
+  let report;
+  if (granularity === "monthly") {
+    report = [await fetchReport(date)];
+  } else if (granularity === "daily") {
+    const promises = utils.getDatesInRange(date, dateTo).map(fetchReport);
+    report = await Promise.all(promises);
+  }
 
-  res.json(utils.mergeCSV(data));
+  res.json(utils.mergeCSV(report));
 });
 
 app.listen(3000, () =>
