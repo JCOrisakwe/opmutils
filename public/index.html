@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Download Site Data</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./css/style.css" />
+  </head>
+  <body>
+    <div class="hero">
+      <div class="wrap">
+        <header></header>
+        <div class="hero-inner">
+          <h1>Open the panel on your organization's meter data.</h1>
+          <p>
+            Check on your sites, watch meter activity as it happens, and
+            download the reports you need.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <main class="wrap">
+      <section class="schedule-section">
+        <div class="section-head">
+          <h2>What you can do here</h2>
+          <span>4 circuits</span>
+        </div>
+
+        <div class="schedule">
+          <a class="circuit" href="/freshness">
+            <span class="circuit-num"
+              >01
+              <div class="switch"></div
+            ></span>
+            <span class="circuit-body">
+              <h3>Data freshness</h3>
+              <p>
+                See the exact time each site last reported in, so you always
+                know how current your numbers are before you rely on them.
+              </p>
+            </span>
+            <span class="circuit-action"
+              >Check status
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <path
+                  d="M2 7h9M8 3l4 4-4 4"
+                  stroke="currentColor"
+                  stroke-width="1.4"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </span>
+          </a>
+
+          <a class="circuit" href="/live">
+            <span class="circuit-num"
+              >02
+              <div class="switch"></div
+            ></span>
+            <span class="circuit-body">
+              <h3>Live meter readings</h3>
+              <p>
+                Watch what's happening right now. Pull the latest activity from
+                the past 15 minutes, or widen the window up to a full hour.
+              </p>
+            </span>
+            <span class="circuit-action"
+              >View live
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <path
+                  d="M2 7h9M8 3l4 4-4 4"
+                  stroke="currentColor"
+                  stroke-width="1.4"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </span>
+          </a>
+
+          <a class="circuit" href="/historical">
+            <span class="circuit-num"
+              >03
+              <div class="switch"></div
+            ></span>
+            <span class="circuit-body">
+              <h3>Historical meter readings</h3>
+              <p>
+                Look back over any stretch of time. Choose a date range and pull
+                detailed consumption data for deeper analysis.
+              </p>
+            </span>
+            <span class="circuit-action"
+              >Browse history
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <path
+                  d="M2 7h9M8 3l4 4-4 4"
+                  stroke="currentColor"
+                  stroke-width="1.4"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </span>
+          </a>
+
+          <a class="circuit" href="/reports">
+            <span class="circuit-num"
+              >04
+              <div class="switch"></div
+            ></span>
+            <span class="circuit-body">
+              <h3>Reports</h3>
+              <p>
+                Download ready-made reports on energy usage or customer
+                payments, by day or by month, as CSV files you can open straight
+                in Excel.
+              </p>
+            </span>
+            <span class="circuit-action"
+              >Download
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <path
+                  d="M2 7h9M8 3l4 4-4 4"
+                  stroke="currentColor"
+                  stroke-width="1.4"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </span>
+          </a>
+        </div>
+      </section>
+
+      <section class="download-section">
+        <div class="modal-overlay" id="circuitModal">
+          <div class="modal-panel">
+            <div class="modal-head">
+              <div>
+                <h2 id="modalTitle"></h2>
+                <p id="modalSub"></p>
+              </div>
+              <button class="modal-close" id="modalClose">✕</button>
+            </div>
+
+            <form class="modal-body" id="modalForm" method="get">
+              <div class="field" data-field="single-site">
+                <label for="siteSelect">Site</label>
+                <select id="siteSelect" name="site_id">
+                  <option value="">Fetching sites…</option>
+                </select>
+              </div>
+
+              <div class="field" data-field="age">
+                <label for="ageSelect">Age</label>
+                <select id="ageSelect" name="age">
+                  <option value="">Reading age</option>
+                  <option value="10m">10 minutes</option>
+                  <option value="20m">20 minutes</option>
+                  <option value="30m">30 minutes</option>
+                  <option value="40m">40 minutes</option>
+                  <option value="50m">50 minutes</option>
+                  <option value="60m">60 minutes</option>
+                </select>
+              </div>
+
+              <div class="field" data-field="date">
+                <label>Date</label>
+                <input type="date" name="date" />
+              </div>
+
+              <div class="field" data-field="daterange">
+                <label>Date range (30 days max)</label>
+                <div class="date-range">
+                  <input type="date" name="dateFrom" />
+                  <span>to</span>
+                  <input type="date" name="dateTo" />
+                </div>
+              </div>
+
+              <div class="field" data-field="report">
+                <label>Report type</label>
+                <div class="chip-group">
+                  <label class="chip">
+                    <input type="radio" name="type" value="readings" />
+                    <span>Meter readings</span>
+                  </label>
+                  <label class="chip">
+                    <input type="radio" name="type" value="payments" />
+                    <span>Customer payments</span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="field" data-field="granularity">
+                <label>Granularity</label>
+                <div class="chip-group">
+                  <label class="chip">
+                    <input type="radio" name="granularity" value="daily" />
+                    <span>Daily</span>
+                  </label>
+                  <label class="chip">
+                    <input type="radio" name="granularity" value="monthly" />
+                    <span>Monthly</span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="field" data-field="multi-site">
+                <label for="siteSelects">Sites</label>
+                <select id="siteSelects" name="sites" multiple>
+                  <option value="">Fetching sites…</option>
+                </select>
+              </div>
+
+              <p class="modal-warning">
+                Nova sites must have a configured service area to get live
+                readings.
+              </p>
+            </form>
+
+            <div class="modal-foot">
+              <button type="button" class="btn btn-ghost" id="modalCancel">
+                Cancel
+              </button>
+              <button
+                type="submit"
+                form="modalForm"
+                class="btn btn-copper"
+                id="modalSubmit"
+                disabled
+              >
+                Download
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <footer>
+        <p>
+          Spark Meter Reports &middot; data updates automatically as your sites
+          report in.
+        </p>
+      </footer>
+    </main>
+
+    <script src="./js/script.js"></script>
+  </body>
+</html>
