@@ -1,5 +1,6 @@
 const express = require("express");
 const utils = require("./utils");
+const path = require("path");
 const app = express();
 const PORT = 3000;
 
@@ -19,6 +20,8 @@ const SITES = {
   "ca0e1988-41c8-4298-a229-1ec1c2f19585": "AJEGUNLE COMMUNITY",
   "a790a744-ee49-4a3f-8995-7843439f4c6f": "MILE 13 CLUSTER",
 };
+
+app.use(express.static(path.join(__dirname, "public")));
 
 app.get("/sites", async (req, res) => {
   const url = `${baseUrl}/organizations/${org_id}/sites`;
