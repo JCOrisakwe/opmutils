@@ -1,6 +1,6 @@
 const express = require("express");
-const utils = require("./utils");
 const path = require("path");
+const utils = require("./utils");
 const app = express();
 const PORT = 3000;
 
@@ -14,12 +14,7 @@ const options = {
     "Content-Type": "application/json",
   },
 };
-const SITES = {
-  "3a1bb0d2-4521-4f24-bab9-8426d4827480": "ADEBAYO COMMUNITY MAIN",
-  "31454d1f-6cf7-49d2-9567-eb506079ca60": "ADEWALE COMMUNITY",
-  "ca0e1988-41c8-4298-a229-1ec1c2f19585": "AJEGUNLE COMMUNITY",
-  "a790a744-ee49-4a3f-8995-7843439f4c6f": "MILE 13 CLUSTER",
-};
+const SITES = {};
 
 app.use(express.static(path.join(__dirname, "public")));
 
@@ -32,11 +27,12 @@ app.get("/sites", async (req, res) => {
 
 app.get("/freshness", async (req, res) => {
   const url = `${baseUrl}/organizations/${org_id}/data/freshness`;
+  const sites = utils.ensureArray(req.query.sites);
 
   const data = await utils.safeFetch(url, {
     ...options,
     method: "POST",
-    body: JSON.stringify({ filters: { sites: Object.keys(SITES) } }),
+    body: JSON.stringify({ filters: { sites } }),
   });
 
   const parsedData = [];
@@ -44,50 +40,42 @@ app.get("/freshness", async (req, res) => {
     parsedData.push({ site: SITES[site_id], "last reading": reading?.reading });
   }
 
-  res.json(parsedData);
+  utils.exportJsonToExcel(data.data, res, "freshnessData");
 });
 
 app.get("/live", async (req, res) => {
   const url = `${baseUrl}/organizations/${org_id}/data/live`;
+  const sites = utils.ensureArray(req.query.sites);
+  const age = req.query.age;
 
   const data = await utils.safeFetch(url, {
     ...options,
     method: "POST",
-    body: JSON.stringify({
-      per_page: 200,
-      filters: { sites: Object.keys(SITES), age: "30m" },
-    }),
+    body: JSON.stringify({ per_page: 200, filters: { sites, age } }),
   });
 
-  res.json(data);
+  utils.exportJsonToExcel(data.data, res, "liveData");
 });
 
 app.get("/historical", async (req, res) => {
   const url = `${baseUrl}/organizations/${org_id}/data/historical`;
+  const sites = utils.ensureArray(req.query.site_id);
+  const { dateFrom: from, dateTo: to } = req.query;
 
   const data = await utils.safeFetch(url, {
     ...options,
     method: "POST",
     body: JSON.stringify({
       per_page: 200,
-      filters: {
-        sites: Object.keys(SITES),
-        date_range: { from: "2026-08-15", to: "2026-08-16" },
-      },
+      filters: { sites, date_range: { from, to } },
     }),
   });
 
-  res.json(data);
+  utils.exportJsonToExcel(data.data, res, "historicalData");
 });
 
 app.get("/reports", async (req, res) => {
-  const [date, dateTo, granularity, site_id, type] = [
-    "2026-09-01",
-    "2026-09-02",
-    "daily",
-    "3a1bb0d2-4521-4f24-bab9-8426d4827480",
-    "payments",
-  ];
+  const { dateFrom: date, dateTo, granularity, site_id, type } = req.query;
 
   const fetchReport = async (reportDate) => {
     const params = { date: reportDate, granularity, site_id, type };
@@ -103,9 +91,9 @@ app.get("/reports", async (req, res) => {
     report = await Promise.all(promises);
   }
 
-  res.json(utils.mergeCSV(report));
+  utils.esportCsvToExcel(utils.mergeCSV(report), res, "reportsData");
 });
 
-app.listen(3000, () =>
+app.listen(PORT, () =>
   console.log(`🚀 Server running on http://localhost:${PORT}`),
 );
