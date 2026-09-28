@@ -135,13 +135,16 @@ form.addEventListener("submit", async (e) => {
   if (requiredControls["dateFrom"]) {
     const dateFrom = requiredControls["dateFrom"].value;
     const dateTo = requiredControls["dateTo"].value;
+    const dateToday = new Date().toISOString().slice(0, 10);
 
-    validDateRange = dateFrom && dateTo && dateFrom <= dateTo;
+    validDateRange =
+      dateFrom && dateTo && dateFrom <= dateTo && dateTo <= dateToday;
   }
 
-  const warningMsg = "";
   if (!formFilled) {
     modalWarning.textContent = "Please complete all fields before submitting.";
+  } else if (!validDateRange) {
+    modalWarning.textContent = "Please select a valid date range.";
   } else {
     form.submit();
     closeModal();
