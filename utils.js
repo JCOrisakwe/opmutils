@@ -35,14 +35,14 @@ function flattenObject(obj, prefix = "") {
 }
 
 async function exportJsonToExcel(jsonData, res, filename) {
-  if (jsonData.length === 0) res.write("empty");
-
   const workbook = new excelJs.Workbook();
   const worksheet = workbook.addWorksheet("Sheet1");
 
-  const keys = Object.keys(jsonData[0]);
-  worksheet.columns = keys.map((key) => ({ header: key, key }));
-  jsonData.forEach((data) => worksheet.addRow(data));
+  if (jsonData.length) {
+    const keys = Object.keys(jsonData[0]);
+    worksheet.columns = keys.map((key) => ({ header: key, key }));
+    jsonData.forEach((data) => worksheet.addRow(data));
+  }
 
   await exportToExcel(workbook, res, filename);
 }
@@ -82,7 +82,7 @@ function mergeCSV(csvStrArr) {
   return mergedChunks.join("\n");
 }
 
-async function safeFetch(url, options, isJson = true, timeoutMs = 10000) {
+async function safeFetch(url, options, isJson = true, timeoutMs = 60000) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
