@@ -1,3 +1,6 @@
+const excelJs = require("exceljs");
+const { Readable } = require("stream");
+
 function getDatesInRange(from, to) {
   const dates = [];
   const cur = new Date(from);
@@ -9,6 +12,59 @@ function getDatesInRange(from, to) {
   }
 
   return dates;
+}
+
+function ensureArray(item) {
+  return Array.isArray(item) ? item : [item];
+}
+
+function flattenObject(obj, prefix = "") {
+  const result = {};
+
+  for (const [key, value] of Object.entries(obj)) {
+    const newKey = prefix ? `${prefix}_${key}` : key;
+
+    if (value !== undefined && value !== null && value.constructor == Object) {
+      Object.assign(result, flattenObject(value, newKey));
+    } else {
+      result[newKey] = value;
+    }
+  }
+
+  return result;
+}
+
+async function exportJsonToExcel(jsonData, res, filename) {
+  if (jsonData.length === 0) res.write("empty");
+
+  const workbook = new excelJs.Workbook();
+  const worksheet = workbook.addWorksheet("Sheet1");
+
+  const keys = Object.keys(jsonData[0]);
+  worksheet.columns = keys.map((key) => ({ header: key, key }));
+  jsonData.forEach((data) => worksheet.addRow(data));
+
+  await exportToExcel(workbook, res, filename);
+}
+
+async function esportCsvToExcel(csvData, res, filename) {
+  const stream = Readable.from(csvData);
+
+  const workbook = new excelJs.Workbook();
+  await workbook.csv.read(stream);
+
+  await exportToExcel(workbook, res, filename);
+}
+
+async function exportToExcel(workbook, res, filename) {
+  const buffer = await workbook.xlsx.writeBuffer();
+
+  res.setHeader(
+    "Content-Type",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  );
+  res.setHeader("Content-Disposition", `attachment; filename=${filename}.xlsx`);
+  res.send(buffer);
 }
 
 function mergeCSV(csvStrArr) {
@@ -75,4 +131,8 @@ module.exports = {
   getDatesInRange,
   mergeCSV,
   safeFetch,
+  ensureArray,
+  flattenObject,
+  exportJsonToExcel,
+  esportCsvToExcel,
 };
