@@ -40,7 +40,7 @@ app.get("/freshness", async (req, res) => {
     parsedData.push({ site: SITES[site_id], "last reading": reading?.reading });
   }
 
-  utils.exportJsonToExcel(data.data, res, "freshnessData");
+  utils.exportJsonToExcel(parsedData, res, "freshnessData");
 });
 
 app.get("/live", async (req, res) => {
@@ -71,7 +71,8 @@ app.get("/historical", async (req, res) => {
     }),
   });
 
-  utils.exportJsonToExcel(data.data, res, "historicalData");
+  const flattenedData = data.data.map((item) => utils.flattenObject(item));
+  utils.exportJsonToExcel(flattenedData, res, "historicalData");
 });
 
 app.get("/reports", async (req, res) => {
