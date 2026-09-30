@@ -127,10 +127,30 @@ async function safeFetch(url, options, isJson = true, timeoutMs = 60000) {
   }
 }
 
+ async function safeFullFetch(url, config) {
+  let dataIncomplete = true;
+  const reports = [];
+
+  while (dataIncomplete) {
+    const report = await safeFetch(url, config);
+    reports.push(...report.data);
+
+    dataIncomplete = report.pagination.has_more;
+
+    config.body = JSON.stringify({
+      per_page: 200,
+      cursor: report.pagination.cursor,
+    });
+  }
+
+  return reports;
+}
+
 module.exports = {
   getDatesInRange,
   mergeCSV,
   safeFetch,
+  safeFullFetch,
   ensureArray,
   flattenObject,
   exportJsonToExcel,
