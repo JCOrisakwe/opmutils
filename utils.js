@@ -38,7 +38,7 @@ async function exportJsonToExcel(jsonData, res, filename) {
   const workbook = new excelJs.Workbook();
   const worksheet = workbook.addWorksheet("Sheet1");
 
-  if (jsonData.length) {
+  if (jsonData && jsonData.length) {
     const keys = Object.keys(jsonData[0]);
     worksheet.columns = keys.map((key) => ({ header: key, key }));
     jsonData.forEach((data) => worksheet.addRow(data));
@@ -47,7 +47,7 @@ async function exportJsonToExcel(jsonData, res, filename) {
   await exportToExcel(workbook, res, filename);
 }
 
-async function esportCsvToExcel(csvData, res, filename) {
+async function exportCsvToExcel(csvData, res, filename) {
   const stream = Readable.from(csvData);
 
   const workbook = new excelJs.Workbook();
@@ -71,10 +71,13 @@ function mergeCSV(csvStrArr) {
   const mergedChunks = [];
 
   for (const str of csvStrArr) {
+    if (!str.trim()) continue;
+
     if (mergedChunks.length === 0) {
       mergedChunks.push(str.trim());
       continue;
     }
+
     const lines = str.trim().split(/\r?\n/);
     mergedChunks.push(lines.slice(1).join("\n"));
   }
@@ -82,9 +85,9 @@ function mergeCSV(csvStrArr) {
   return mergedChunks.join("\n");
 }
 
-async function safeFetch(url, options, isJson = true, timeoutMs = 60000) {
+async function safeFetch(url, options = {}, isJson = true, timeoutMs = 60000) {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     const response = await fetch(url, {
@@ -92,54 +95,37 @@ async function safeFetch(url, options, isJson = true, timeoutMs = 60000) {
       signal: controller.signal,
     });
 
-    clearTimeout(timeoutId);
-
-    // Handle non-2xx HTTP status codes
     if (!response.ok) {
-      let errorBody;
-      try {
-        errorBody = await response.json();
-      } catch {
-        errorBody = await response.text().catch(() => null);
-      }
-      throw new Error(
-        `HTTP ${response.status} (${response.statusText}): ${
-          errorBody ? JSON.stringify(errorBody) : "No error details"
-        }`,
-      );
+      const error = `HTTP ${response.status}`;
+      console.error("safeFetch failed", { url, error });
+      console.error("Response text:", await response.text());
+      return isJson ? null : "";
     }
 
-    try {
-      return isJson ? await response.json() : await response.text();
-    } catch (parseError) {
-      throw new Error(`Failed to parse response JSON: ${parseError.message}`);
-    }
-  } catch (error) {
-    clearTimeout(timeoutId);
-
-    if (error.name === "AbortError") {
-      throw new Error(`Request timed out after ${timeoutMs}ms`);
-    }
-    if (error instanceof TypeError) {
-      throw new Error(`Network error: ${error.message}`);
-    }
-    throw error;
+    const rawText = await response.text();
+    return isJson ? JSON.parse(rawText || null) : rawText;
+  } catch (err) {
+    const error = err.name === "AbortError" ? "Timeout" : err.message;
+    console.error("safeFetch failed", { url, error });
+    return isJson ? null : "";
+  } finally {
+    clearTimeout(timer);
   }
 }
 
- async function safeFullFetch(url, config) {
+async function safeFullFetch(url, config, isJson = true, timeoutMs = 60000) {
   let dataIncomplete = true;
   const reports = [];
 
   while (dataIncomplete) {
-    const report = await safeFetch(url, config);
-    reports.push(...report.data);
+    const report = await safeFetch(url, config, isJson, timeoutMs);
+    reports.push(...(report?.data || []));
 
-    dataIncomplete = report.pagination.has_more;
+    dataIncomplete = report?.pagination?.has_more;
 
     config.body = JSON.stringify({
       per_page: 200,
-      cursor: report.pagination.cursor,
+      cursor: report?.pagination?.cursor,
     });
   }
 
@@ -154,5 +140,5 @@ module.exports = {
   ensureArray,
   flattenObject,
   exportJsonToExcel,
-  esportCsvToExcel,
+  exportCsvToExcel,
 };
