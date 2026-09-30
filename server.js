@@ -62,7 +62,7 @@ app.get("/historical", async (req, res) => {
   const sites = utils.ensureArray(req.query.site_id);
   const { dateFrom: from, dateTo: to } = req.query;
 
-  const data = await utils.safeFetch(url, {
+  const data = await utils.safeFullFetch(url, {
     ...options,
     method: "POST",
     body: JSON.stringify({
@@ -71,7 +71,7 @@ app.get("/historical", async (req, res) => {
     }),
   });
 
-  const flattenedData = data.data.map((item) => utils.flattenObject(item));
+  const flattenedData = data.map((item) => utils.flattenObject(item));
   utils.exportJsonToExcel(flattenedData, res, "historicalData");
 });
 
