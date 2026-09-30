@@ -54,7 +54,7 @@ app.get("/live", async (req, res) => {
     body: JSON.stringify({ per_page: 200, filters: { sites, age } }),
   });
 
-  utils.exportJsonToExcel(data.data, res, "liveData");
+  utils.exportJsonToExcel(data?.data, res, "liveData");
 });
 
 app.get("/historical", async (req, res) => {
@@ -92,7 +92,7 @@ app.get("/reports", async (req, res) => {
     report = await Promise.all(promises);
   }
 
-  utils.esportCsvToExcel(utils.mergeCSV(report), res, "reportsData");
+  utils.exportCsvToExcel(utils.mergeCSV(report), res, "reportsData");
 });
 
 app.listen(PORT, () =>
