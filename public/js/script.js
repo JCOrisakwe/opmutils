@@ -62,6 +62,7 @@ async function fetchSites() {
   for (const site of data) {
     const option = document.createElement("option");
     option.value = site.id;
+    option.selected = true;
     option.textContent = site.name.toLowerCase();
     fragment.append(option);
   }
@@ -132,19 +133,28 @@ form.addEventListener("submit", async (e) => {
   });
 
   let validDateRange = true;
+  const MAX_RANGE_DAYS = 30;
+  const MS_PER_DAY = 1000 * 60 * 60 * 24;
+
   if (requiredControls["dateFrom"]) {
     const dateFrom = requiredControls["dateFrom"].value;
     const dateTo = requiredControls["dateTo"].value;
     const dateToday = new Date().toISOString().slice(0, 10);
 
+    const diffDays =
+      (Date.parse(dateTo) - Date.parse(dateFrom)) / MS_PER_DAY + 1;
+
     validDateRange =
-      dateFrom && dateTo && dateFrom <= dateTo && dateTo <= dateToday;
+      Boolean(dateFrom && dateTo) &&
+      dateFrom <= dateTo &&
+      dateTo <= dateToday &&
+      diffDays <= MAX_RANGE_DAYS;
   }
 
   if (!formFilled) {
     modalWarning.textContent = "Please complete all fields before submitting.";
   } else if (!validDateRange) {
-    modalWarning.textContent = "Please select a valid date range.";
+    modalWarning.textContent = `Please select a valid date range (maximum ${MAX_RANGE_DAYS} days).`;
   } else {
     form.submit();
     closeModal();
