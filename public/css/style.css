@@ -499,13 +499,8 @@ h1 {
 
 .modal-warning {
   color: #ff0000;
-  opacity: 0;
   font-size: 0.82rem;
   margin: 0 0 5px 0;
-}
-
-.modal-warning.active {
-  opacity: 1;
 }
 
 /* ---------- footer ---------- */
