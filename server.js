@@ -1,99 +1,151 @@
+require("dotenv").config();
+
 const express = require("express");
 const path = require("path");
 const utils = require("./utils");
 const app = express();
 const PORT = 3000;
 
-const org_id = "64bfd8cd-d361-4368-98c9-c0ea3730559d";
+const org_id = process.env.SPARKMETER_ORG_ID;
 const baseUrl = "https://sparkmeter.cloud/api/v2";
 const options = {
   method: "GET",
   headers: {
-    "X-API-KEY": "NhjJ3BOBPsrTV_9wEBlrMnDo9VNQT5DcZRyEWRqSgSw",
-    "X-API-SECRET": "@Rm7HqY@sg05&1BCfr^m@2nZELD)y@kV",
+    "X-API-KEY": process.env.SPARKMETER_API_KEY,
+    "X-API-SECRET": process.env.SPARKMETER_API_SECRET,
     "Content-Type": "application/json",
   },
 };
+
 const SITES = {};
 
-app.use(express.static(path.join(__dirname, "public")));
-
-app.get("/sites", async (req, res) => {
+async function loadSites() {
   const url = `${baseUrl}/organizations/${org_id}/sites`;
   const data = await utils.safeFetch(url, options);
   for (const site of data.sites) SITES[site.id] = site.name;
-  res.json(data.sites);
-});
+  return data.sites;
+}
 
-app.get("/freshness", async (req, res) => {
-  const url = `${baseUrl}/organizations/${org_id}/data/freshness`;
-  const sites = utils.ensureArray(req.query.sites);
+async function assertSites(sites) {
+  if (!Object.keys(SITES).length) await loadSites();
+  if (!sites.length || !sites.every((id) => id in SITES))
+    throw new utils.HttpError(400, "Unknown site.");
+}
 
-  const data = await utils.safeFetch(url, {
-    ...options,
-    method: "POST",
-    body: JSON.stringify({ filters: { sites } }),
-  });
+app.use(express.static(path.join(__dirname, "public")));
 
-  const parsedData = [];
-  for (const [site_id, reading] of Object.entries(data.freshness)) {
-    parsedData.push({ site: SITES[site_id], "last reading": reading?.reading });
-  }
+app.get(
+  "/sites",
+  utils.handle(async (req, res) => {
+    res.json(await loadSites());
+  }),
+);
 
-  utils.exportJsonToExcel(parsedData, res, "freshnessData");
-});
+app.get(
+  "/freshness",
+  utils.handle(async (req, res) => {
+    const sites = utils.ensureArray(req.query.sites);
+    await assertSites(sites);
 
-app.get("/live", async (req, res) => {
-  const url = `${baseUrl}/organizations/${org_id}/data/live`;
-  const sites = utils.ensureArray(req.query.sites);
-  const age = req.query.age;
+    const url = `${baseUrl}/organizations/${org_id}/data/freshness`;
+    const data = await utils.safeFetch(url, {
+      ...options,
+      method: "POST",
+      body: JSON.stringify({ filters: { sites } }),
+    });
 
-  const data = await utils.safeFetch(url, {
-    ...options,
-    method: "POST",
-    body: JSON.stringify({ per_page: 200, filters: { sites, age } }),
-  });
+    const parsedData = Object.entries(data.freshness).map(([id, reading]) => ({
+      site: SITES[id],
+      "last reading": reading?.reading,
+    }));
 
-  utils.exportJsonToExcel(data?.data, res, "liveData");
-});
+    await utils.exportJsonToExcel(parsedData, res, "freshnessData");
+  }),
+);
 
-app.get("/historical", async (req, res) => {
-  const url = `${baseUrl}/organizations/${org_id}/data/historical`;
-  const sites = utils.ensureArray(req.query.site_id);
-  const { dateFrom: from, dateTo: to } = req.query;
+app.get(
+  "/live",
+  utils.handle(async (req, res) => {
+    const sites = utils.ensureArray(req.query.sites);
+    const age = req.query.age;
+    await assertSites(sites);
 
-  const data = await utils.safeFullFetch(url, {
-    ...options,
-    method: "POST",
-    body: JSON.stringify({
-      per_page: 200,
-      filters: { sites, date_range: { from, to } },
-    }),
-  });
+    if (!age) throw new utils.HttpError(400, "Age is required.");
 
-  const flattenedData = data.map((item) => utils.flattenObject(item));
-  utils.exportJsonToExcel(flattenedData, res, "historicalData");
-});
+    const url = `${baseUrl}/organizations/${org_id}/data/live`;
+    const data = await utils.safeFetch(url, {
+      ...options,
+      method: "POST",
+      body: JSON.stringify({ per_page: 200, filters: { sites, age } }),
+    });
 
-app.get("/reports", async (req, res) => {
-  const { dateFrom: date, dateTo, granularity, site_id, type } = req.query;
+    utils.assertHasData(data?.data);
+    await utils.exportJsonToExcel(data?.data, res, "liveData");
+  }),
+);
 
-  const fetchReport = async (reportDate) => {
-    const params = { date: reportDate, granularity, site_id, type };
-    const url = `${baseUrl}/report?${new URLSearchParams(params).toString()}`;
-    return await utils.safeFetch(url, options, false);
-  };
+app.get(
+  "/historical",
+  utils.handle(async (req, res) => {
+    const sites = utils.ensureArray(req.query.site_id);
+    const dateFrom = req.query.date;
+    await assertSites(sites);
+    utils.assertDate(dateFrom, "Date");
 
-  let report;
-  if (granularity === "monthly") {
-    report = [await fetchReport(date)];
-  } else if (granularity === "daily") {
-    const promises = utils.getDatesInRange(date, dateTo).map(fetchReport);
-    report = await Promise.all(promises);
-  }
+    const df = new Date(dateFrom);
+    df.setUTCDate(df.getUTCDate() + 1);
+    const dateTo = df.toISOString().slice(0, 10);
 
-  utils.exportCsvToExcel(utils.mergeCSV(report), res, "reportsData");
-});
+    const url = `${baseUrl}/organizations/${org_id}/data/historical`;
+    const data = await utils.safeFullFetch(url, {
+      ...options,
+      method: "POST",
+      body: JSON.stringify({
+        per_page: 200,
+        filters: { sites, date_range: { from: dateFrom, to: dateTo } },
+      }),
+    });
+
+    const flattenedData = data.map((item) => utils.flattenObject(item));
+    utils.assertHasData(flattenedData);
+    await utils.exportJsonToExcel(flattenedData, res, "historicalData");
+  }),
+);
+
+app.get(
+  "/reports",
+  utils.handle(async (req, res) => {
+    const { dateFrom: date, dateTo, granularity, site_id, type } = req.query;
+
+    await assertSites([site_id]);
+    utils.assertDateRange(date, dateTo);
+    if (!["daily", "monthly"].includes(granularity))
+      throw new utils.HttpError(400, "Invalid granularity.");
+    if (!type) throw new utils.HttpError(400, "Report type is required.");
+
+    const fetchReport = async (reportDate) => {
+      const params = { date: reportDate, granularity, site_id, type };
+      const url = `${baseUrl}/report?${new URLSearchParams(params)}`;
+      try {
+        return await utils.safeFetch(url, options, false);
+      } catch (err) {
+        if (err.status === 404) return "";
+        throw err;
+      }
+    };
+
+    const report =
+      granularity === "monthly"
+        ? [await fetchReport(date)]
+        : await Promise.all(
+            utils.getDatesInRange(date, dateTo).map(fetchReport),
+          );
+
+    const merged = utils.mergeCSV(report);
+    utils.assertHasData(merged);
+    await utils.exportCsvToExcel(merged, res, "reportsData");
+  }),
+);
 
 app.listen(PORT, () =>
   console.log(`🚀 Server running on http://localhost:${PORT}`),
